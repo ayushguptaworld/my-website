@@ -142,7 +142,7 @@ function setupConnection(connection, role) {
 function startGame() {
     cells.forEach(cell => cell.addEventListener('click', cellClicked));
     resetBtn.addEventListener('click', () => restartGame(true));
-    currentPlayer = 'X';
+    currentPlayer = 'ANY'; // ANY means whoever clicks first starts
     running = true;
     updateStatusText();
 }
@@ -154,8 +154,13 @@ function cellClicked() {
         return;
     }
 
-    if (myRole !== currentPlayer) {
+    if (currentPlayer !== 'ANY' && myRole !== currentPlayer) {
         return; // Not my turn
+    }
+
+    // If it's the very first move, the person who clicked dictates that their role went first
+    if (currentPlayer === 'ANY') {
+        currentPlayer = myRole;
     }
 
     // Make local move
@@ -166,6 +171,9 @@ function cellClicked() {
 }
 
 function handleOpponentMove(index, player) {
+    if (currentPlayer === 'ANY') {
+        currentPlayer = player;
+    }
     makeMove(index, player);
 }
 
@@ -185,8 +193,12 @@ function makeMove(index, player) {
 
 function updateStatusText() {
     if (!running) return;
-    let turnMsg = (currentPlayer === myRole) ? "Your Turn" : "Opponent's Turn";
-    statusText.textContent = `Player ${currentPlayer}'s turn (${turnMsg})`;
+    if (currentPlayer === 'ANY') {
+        statusText.textContent = "Game started! Anyone can make the first move.";
+    } else {
+        let turnMsg = (currentPlayer === myRole) ? "Your Turn" : "Opponent's Turn";
+        statusText.textContent = `Player ${currentPlayer}'s turn (${turnMsg})`;
+    }
 }
 
 function checkWinner(highlight) {
@@ -226,7 +238,7 @@ function checkWinner(highlight) {
 }
 
 function restartGame(emit) {
-    currentPlayer = 'X';
+    currentPlayer = 'ANY';
     board = ['', '', '', '', '', '', '', '', ''];
     running = true;
     cells.forEach(cell => {
