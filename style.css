@@ -109,3 +109,76 @@ button:active {
     transform: translateY(1px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
+
+.connection-panel {
+    background-color: #2b3a55;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.my-id-container,
+.connect-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.my-id-container p,
+.connect-container p {
+    font-size: 14px;
+    color: #aebfd8;
+    margin: 0;
+}
+
+.id-box {
+    display: flex;
+    align-items: center;
+    background-color: #1e293b;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 16px;
+    color: #fff;
+    justify-content: space-between;
+}
+
+.id-box button {
+    background-color: #4ade80;
+    color: #1e293b;
+    border: none;
+    border-radius: 3px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.connect-container input {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #4a5568;
+    background-color: #1e293b;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+}
+
+.connect-container button {
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #60a5fa;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.connect-container button:hover {
+    background-color: #3b82f6;
+}
