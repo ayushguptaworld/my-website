@@ -62,12 +62,21 @@ const winConditions = [
 ];
 
 // ----- PEER JS SETUP -----
-// Generate a short 5-character custom ID
-function generateShortId() {
-    return Math.random().toString(36).substring(2, 7).toUpperCase();
+const marvelHeroes = [
+    "IRONMAN", "THOR", "HULK", "CAPTAIN", "WIDOW", "HAWKEYE",
+    "SPIDERMAN", "PANTHER", "STRANGE", "ANTMAN", "WASP", "MARVEL",
+    "VISION", "WANDA", "FALCON", "LOKI", "GROOT", "ROCKET", "STARLORD",
+    "DRAX", "GAMORA", "BUCKY", "VENOM", "DEADPOOL", "WOLVERINE"
+];
+
+// Generate a Marvel hero + 2 digits for uniqueness (e.g. THOR42)
+function generateHeroId() {
+    const randomHero = marvelHeroes[Math.floor(Math.random() * marvelHeroes.length)];
+    const randomNum = Math.floor(Math.random() * 90 + 10); // 10 to 99
+    return `${randomHero}${randomNum}`;
 }
 
-const customPeerId = generateShortId();
+const customPeerId = generateHeroId();
 const peer = new Peer(customPeerId); // Pass the custom ID
 let conn = null;
 
