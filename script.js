@@ -22,7 +22,13 @@ const winConditions = [
 ];
 
 // ----- PEER JS SETUP -----
-const peer = new Peer(); // Auto-generate an ID
+// Generate a short 5-character custom ID
+function generateShortId() {
+    return Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+
+const customPeerId = generateShortId();
+const peer = new Peer(customPeerId); // Pass the custom ID
 let conn = null;
 
 peer.on('open', (id) => {
