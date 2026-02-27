@@ -54,12 +54,26 @@ let board = ['', '', '', '', '', '', '', '', ''];
 let currentPlayer = 'X';
 let running = false;
 let myRole = ''; // Will be 'X' or 'O' once connected
+let isComputerMode = false;
 
 const winConditions = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
     [0, 3, 6], [1, 4, 7], [2, 5, 8],
     [0, 4, 8], [2, 4, 6]
 ];
+
+// ----- UI LISTENERS -----
+const playComputerBtn = document.getElementById('play-computer-btn');
+playComputerBtn.addEventListener('click', () => {
+    isComputerMode = true;
+    myRole = 'X'; // Human is always X
+    connectionPanel.style.display = 'none';
+    boardEl.style.pointerEvents = 'auto';
+    boardEl.style.opacity = '1';
+    resetBtn.style.display = 'block';
+
+    startGame();
+});
 
 // ----- PEER JS SETUP -----
 const marvelHeroes = [
@@ -86,7 +100,7 @@ peer.on('open', (id) => {
 
 // When someone else connects to us (We become Player X, they are Player O)
 peer.on('connection', (connection) => {
-    if (conn) {
+    if (conn || isComputerMode) {
         connection.send({ type: 'error', message: 'Game already in progress.' });
         connection.close();
         return;
@@ -142,7 +156,7 @@ function setupConnection(connection, role) {
 function startGame() {
     cells.forEach(cell => cell.addEventListener('click', cellClicked));
     resetBtn.addEventListener('click', () => restartGame(true));
-    currentPlayer = 'ANY'; // ANY means whoever clicks first starts
+    currentPlayer = isComputerMode ? 'X' : 'ANY'; // ANY means whoever clicks first starts in MP
     running = true;
     updateStatusText();
 }
@@ -166,9 +180,92 @@ function cellClicked() {
     // Make local move
     makeMove(cellIndex, myRole);
 
-    // Send move to opponent
-    conn.send({ type: 'move', index: cellIndex, player: myRole });
+    if (isComputerMode) {
+        if (running) {
+            // Give the computer a small delay to feel natural
+            setTimeout(computerTurn, 500);
+        }
+    } else {
+        // Send move to opponent
+        conn.send({ type: 'move', index: cellIndex, player: myRole });
+    }
 }
+
+// ----- COMPUTER AI (MINIMAX) -----
+function computerTurn() {
+    if (!running) return;
+
+    // Sometimes make a random move to make it beatable (20% chance)
+    if (Math.random() < 0.2) {
+        let emptyIndices = [];
+        board.forEach((cell, idx) => { if (cell === '') emptyIndices.push(idx); });
+        let randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        makeMove(randomIdx, 'O');
+    } else {
+        let bestScore = -Infinity;
+        let bestMove;
+
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === '') {
+                board[i] = 'O';
+                let score = minimax(board, 0, false);
+                board[i] = '';
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = i;
+                }
+            }
+        }
+        makeMove(bestMove, 'O');
+    }
+}
+
+let scores = {
+    'X': -10, // Human
+    'O': 10,  // Computer
+    'draw': 0
+};
+
+function checkWinnerMinimax(b) {
+    for (let i = 0; i < winConditions.length; i++) {
+        const [a, b1, c] = winConditions[i];
+        if (b[a] && b[a] === b[b1] && b[a] === b[c]) {
+            return b[a];
+        }
+    }
+    if (!b.includes('')) return 'draw';
+    return null;
+}
+
+function minimax(b, depth, isMaximizing) {
+    let result = checkWinnerMinimax(b);
+    if (result !== null) return scores[result];
+
+    if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (b[i] === '') {
+                b[i] = 'O';
+                let score = minimax(b, depth + 1, false);
+                b[i] = '';
+                bestScore = Math.max(score, bestScore);
+            }
+        }
+        return bestScore;
+    } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < 9; i++) {
+            if (b[i] === '') {
+                b[i] = 'X';
+                let score = minimax(b, depth + 1, true);
+                b[i] = '';
+                bestScore = Math.min(score, bestScore);
+            }
+        }
+        return bestScore;
+    }
+}
+// ---------------------------------
 
 function handleOpponentMove(index, player) {
     if (currentPlayer === 'ANY') {
@@ -196,8 +293,13 @@ function updateStatusText() {
     if (currentPlayer === 'ANY') {
         statusText.textContent = "Game started! Anyone can make the first move.";
     } else {
-        let turnMsg = (currentPlayer === myRole) ? "Your Turn" : "Opponent's Turn";
-        statusText.textContent = `Player ${currentPlayer}'s turn (${turnMsg})`;
+        if (isComputerMode) {
+            let turnMsg = (currentPlayer === myRole) ? "Your Turn" : "Computer is thinking...";
+            statusText.textContent = turnMsg;
+        } else {
+            let turnMsg = (currentPlayer === myRole) ? "Your Turn" : "Opponent's Turn";
+            statusText.textContent = `Player ${currentPlayer}'s turn (${turnMsg})`;
+        }
     }
 }
 
@@ -227,7 +329,12 @@ function checkWinner(highlight) {
 
     if (roundWon) {
         playSound('win');
-        let msg = (winner === myRole) ? "You win! 🎉" : "Opponent wins! 😢";
+        let msg = "";
+        if (isComputerMode) {
+            msg = (winner === myRole) ? "You win! 🎉" : "Computer wins! 🤖";
+        } else {
+            msg = (winner === myRole) ? "You win! 🎉" : "Opponent wins! 😢";
+        }
         statusText.textContent = `Player ${winner} wins! ${msg}`;
         running = false;
     } else if (!board.includes('')) {
@@ -238,7 +345,7 @@ function checkWinner(highlight) {
 }
 
 function restartGame(emit) {
-    currentPlayer = 'ANY';
+    currentPlayer = isComputerMode ? 'X' : 'ANY';
     board = ['', '', '', '', '', '', '', '', ''];
     running = true;
     cells.forEach(cell => {
@@ -248,7 +355,7 @@ function restartGame(emit) {
     });
     updateStatusText();
 
-    if (emit) {
+    if (emit && !isComputerMode && conn) {
         conn.send({ type: 'restart' });
     }
 }

@@ -182,3 +182,37 @@ button:active {
 .connect-container button:hover {
     background-color: #3b82f6;
 }
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #4a5568;
+    margin: 10px 0;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #4a5568;
+}
+
+.divider span {
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.secondary-btn {
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.secondary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(236, 72, 153, 0.4);
+}
