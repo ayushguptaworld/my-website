@@ -16,6 +16,18 @@ const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const chatSendBtn = document.getElementById('chat-send-btn');
 
+// Video UI Elements
+const videoPanel = document.getElementById('video-panel');
+const localVideo = document.getElementById('local-video');
+const remoteVideo = document.getElementById('remote-video');
+const callBtn = document.getElementById('call-btn');
+const endCallBtn = document.getElementById('end-call-btn');
+const muteAudioBtn = document.getElementById('mute-audio-btn');
+const muteVideoBtn = document.getElementById('mute-video-btn');
+
+let localStream = null;
+let currentCall = null;
+
 // Web Audio API for sound effects
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -95,6 +107,108 @@ chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendChatMessage();
 });
 
+// Video Call Listeners
+async function getLocalStream() {
+    if (localStream) return localStream;
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+        return localStream;
+    } catch (err) {
+        console.error('Failed to get local stream', err);
+        alert('Could not access camera/microphone. Please grant permissions.');
+        return null;
+    }
+}
+
+callBtn.addEventListener('click', async () => {
+    if (!conn) return;
+    const stream = await getLocalStream();
+    if (!stream) return;
+
+    callBtn.style.display = 'none';
+    endCallBtn.style.display = 'inline-block';
+    muteAudioBtn.style.display = 'flex';
+    muteVideoBtn.style.display = 'flex';
+
+    statusText.textContent = "Calling...";
+    const call = peer.call(conn.peer, stream);
+    setupCallEvents(call);
+});
+
+endCallBtn.addEventListener('click', () => {
+    if (currentCall) {
+        currentCall.close();
+    }
+    stopLocalStream();
+    resetCallUI();
+});
+
+muteAudioBtn.addEventListener('click', () => {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        if (audioTrack.enabled) {
+            muteAudioBtn.textContent = '🎤';
+            muteAudioBtn.classList.remove('muted');
+        } else {
+            muteAudioBtn.textContent = '🔇';
+            muteAudioBtn.classList.add('muted');
+        }
+    }
+});
+
+muteVideoBtn.addEventListener('click', () => {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        if (videoTrack.enabled) {
+            muteVideoBtn.textContent = '📹';
+            muteVideoBtn.classList.remove('muted');
+        } else {
+            muteVideoBtn.textContent = '🚫';
+            muteVideoBtn.classList.add('muted');
+        }
+    }
+});
+
+function setupCallEvents(call) {
+    currentCall = call;
+
+    call.on('stream', (remoteStream) => {
+        remoteVideo.srcObject = remoteStream;
+        statusText.textContent = "In Call";
+    });
+
+    call.on('close', () => {
+        remoteVideo.srcObject = null;
+        statusText.textContent = `Player ${currentPlayer}'s turn`;
+        resetCallUI();
+        stopLocalStream();
+    });
+}
+
+function stopLocalStream() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localVideo.srcObject = null;
+        localStream = null;
+    }
+}
+
+function resetCallUI() {
+    callBtn.style.display = 'inline-block';
+    endCallBtn.style.display = 'none';
+    muteAudioBtn.style.display = 'none';
+    muteVideoBtn.style.display = 'none';
+    muteAudioBtn.textContent = '🎤';
+    muteVideoBtn.textContent = '📹';
+    muteAudioBtn.classList.remove('muted');
+    muteVideoBtn.classList.remove('muted');
+}
+
 function sendChatMessage() {
     const text = chatInput.value.trim();
     if (!text || !conn) return;
@@ -152,6 +266,23 @@ peer.on('connection', (connection) => {
     setupConnection(connection, 'X');
 });
 
+// Handle incoming video calls
+peer.on('call', async (call) => {
+    // Answer the call automatically with our stream
+    const stream = await getLocalStream();
+    if (stream) {
+        call.answer(stream);
+        setupCallEvents(call);
+
+        callBtn.style.display = 'none';
+        endCallBtn.style.display = 'inline-block';
+        muteAudioBtn.style.display = 'flex';
+        muteVideoBtn.style.display = 'flex';
+    } else {
+        console.warn("Could not answer call without media stream");
+    }
+});
+
 // We initiate connection to someone else (They are Player X, we are Player O)
 connectBtn.addEventListener('click', () => {
     const friendId = friendIdInput.value.trim();
@@ -176,11 +307,12 @@ function setupConnection(connection, role) {
         // Connected!
         connectionPanel.style.display = 'none';
 
-        // Show board and chat
+        // Show board, chat, and video panel
         boardEl.style.pointerEvents = 'auto';
         boardEl.style.opacity = '1';
         resetBtn.style.display = 'block';
         chatPanel.style.display = 'flex';
+        videoPanel.style.display = 'flex';
 
         startGame();
     });
