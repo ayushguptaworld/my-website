@@ -10,6 +10,46 @@ const friendIdInput = document.getElementById('friend-id');
 const connectBtn = document.getElementById('connect-btn');
 const connectionPanel = document.getElementById('connection-panel');
 
+// Web Audio API for sound effects
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    } else if (type === 'win') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+        osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.1); // C#5
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2); // E5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.3); // A5
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.6);
+    } else if (type === 'draw') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.5);
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+}
+
 let board = ['', '', '', '', '', '', '', '', ''];
 let currentPlayer = 'X';
 let running = false;
@@ -121,6 +161,7 @@ function handleOpponentMove(index, player) {
 }
 
 function makeMove(index, player) {
+    playSound('click');
     board[index] = player;
     cells[index].textContent = player;
     cells[index].classList.add(player.toLowerCase());
@@ -164,10 +205,12 @@ function checkWinner(highlight) {
     }
 
     if (roundWon) {
+        playSound('win');
         let msg = (winner === myRole) ? "You win! 🎉" : "Opponent wins! 😢";
         statusText.textContent = `Player ${winner} wins! ${msg}`;
         running = false;
     } else if (!board.includes('')) {
+        playSound('draw');
         statusText.textContent = 'Draw! 🤝';
         running = false;
     }
