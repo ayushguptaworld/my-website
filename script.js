@@ -20,13 +20,15 @@ const chatSendBtn = document.getElementById('chat-send-btn');
 const videoPanel = document.getElementById('video-panel');
 const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
-const callBtn = document.getElementById('call-btn');
+const voiceCallBtn = document.getElementById('voice-call-btn');
+const videoCallBtn = document.getElementById('video-call-btn');
 const endCallBtn = document.getElementById('end-call-btn');
 const muteAudioBtn = document.getElementById('mute-audio-btn');
 const muteVideoBtn = document.getElementById('mute-video-btn');
 
 let localStream = null;
 let currentCall = null;
+let currentCallIsVideo = false;
 
 // Web Audio API for sound effects
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -108,11 +110,17 @@ chatInput.addEventListener('keypress', (e) => {
 });
 
 // Video Call Listeners
-async function getLocalStream() {
+async function getLocalStream(withVideo) {
     if (localStream) return localStream;
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
+        localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
+        if (withVideo) {
+            localVideo.srcObject = localStream;
+            localVideo.style.display = 'block';
+        } else {
+            localVideo.srcObject = null;
+            localVideo.style.display = 'none';
+        }
         return localStream;
     } catch (err) {
         console.error('Failed to get local stream', err);
@@ -121,20 +129,41 @@ async function getLocalStream() {
     }
 }
 
-callBtn.addEventListener('click', async () => {
+voiceCallBtn.addEventListener('click', async () => {
     if (!conn) return;
-    const stream = await getLocalStream();
+    const stream = await getLocalStream(false);
     if (!stream) return;
+    startCallUI(false);
+    statusText.textContent = "Calling...";
+    const call = peer.call(conn.peer, stream, { metadata: { type: 'voice' } });
+    setupCallEvents(call, false);
+});
 
-    callBtn.style.display = 'none';
+videoCallBtn.addEventListener('click', async () => {
+    if (!conn) return;
+    const stream = await getLocalStream(true);
+    if (!stream) return;
+    startCallUI(true);
+    statusText.textContent = "Calling...";
+    const call = peer.call(conn.peer, stream, { metadata: { type: 'video' } });
+    setupCallEvents(call, true);
+});
+
+function startCallUI(withVideo) {
+    currentCallIsVideo = withVideo;
+    voiceCallBtn.style.display = 'none';
+    videoCallBtn.style.display = 'none';
     endCallBtn.style.display = 'inline-block';
     muteAudioBtn.style.display = 'flex';
-    muteVideoBtn.style.display = 'flex';
 
-    statusText.textContent = "Calling...";
-    const call = peer.call(conn.peer, stream);
-    setupCallEvents(call);
-});
+    if (withVideo) {
+        muteVideoBtn.style.display = 'flex';
+        document.querySelector('.video-container').style.display = 'flex';
+    } else {
+        muteVideoBtn.style.display = 'none';
+        document.querySelector('.video-container').style.display = 'none';
+    }
+}
 
 endCallBtn.addEventListener('click', () => {
     if (currentCall) {
@@ -174,11 +203,16 @@ muteVideoBtn.addEventListener('click', () => {
     }
 });
 
-function setupCallEvents(call) {
+function setupCallEvents(call, isVideo) {
     currentCall = call;
 
     call.on('stream', (remoteStream) => {
         remoteVideo.srcObject = remoteStream;
+        if (isVideo) {
+            document.querySelector('.video-container').style.display = 'flex';
+        } else {
+            document.querySelector('.video-container').style.display = 'none';
+        }
         statusText.textContent = "In Call";
     });
 
@@ -199,7 +233,8 @@ function stopLocalStream() {
 }
 
 function resetCallUI() {
-    callBtn.style.display = 'inline-block';
+    voiceCallBtn.style.display = 'inline-block';
+    videoCallBtn.style.display = 'inline-block';
     endCallBtn.style.display = 'none';
     muteAudioBtn.style.display = 'none';
     muteVideoBtn.style.display = 'none';
@@ -207,6 +242,7 @@ function resetCallUI() {
     muteVideoBtn.textContent = '📹';
     muteAudioBtn.classList.remove('muted');
     muteVideoBtn.classList.remove('muted');
+    document.querySelector('.video-container').style.display = 'none';
 }
 
 function sendChatMessage() {
@@ -268,16 +304,15 @@ peer.on('connection', (connection) => {
 
 // Handle incoming video calls
 peer.on('call', async (call) => {
+    // Determine call type from metadata
+    const isVideo = call.metadata && call.metadata.type === 'video';
+
     // Answer the call automatically with our stream
-    const stream = await getLocalStream();
+    const stream = await getLocalStream(isVideo);
     if (stream) {
         call.answer(stream);
-        setupCallEvents(call);
-
-        callBtn.style.display = 'none';
-        endCallBtn.style.display = 'inline-block';
-        muteAudioBtn.style.display = 'flex';
-        muteVideoBtn.style.display = 'flex';
+        setupCallEvents(call, isVideo);
+        startCallUI(isVideo);
     } else {
         console.warn("Could not answer call without media stream");
     }

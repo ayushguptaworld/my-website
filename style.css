@@ -354,7 +354,6 @@ button:active {
 }
 
 .call-btn {
-    background-color: #10b981;
     color: white;
     padding: 10px 15px;
     border-radius: 20px;
@@ -363,7 +362,19 @@ button:active {
     cursor: pointer;
 }
 
-.call-btn:hover {
+.call-btn.voice {
+    background-color: #3b82f6;
+}
+
+.call-btn.voice:hover {
+    background-color: #2563eb;
+}
+
+.call-btn.video {
+    background-color: #10b981;
+}
+
+.call-btn.video:hover {
     background-color: #059669;
 }
 
