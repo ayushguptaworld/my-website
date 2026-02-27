@@ -10,6 +10,12 @@ const friendIdInput = document.getElementById('friend-id');
 const connectBtn = document.getElementById('connect-btn');
 const connectionPanel = document.getElementById('connection-panel');
 
+// Chat UI Elements
+const chatPanel = document.getElementById('chat-panel');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const chatSendBtn = document.getElementById('chat-send-btn');
+
 // Web Audio API for sound effects
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -47,6 +53,14 @@ function playSound(type) {
         gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.5);
+    } else if (type === 'chat') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
     }
 }
 
@@ -74,6 +88,36 @@ playComputerBtn.addEventListener('click', () => {
 
     startGame();
 });
+
+// Chat Listeners
+chatSendBtn.addEventListener('click', sendChatMessage);
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChatMessage();
+});
+
+function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text || !conn) return;
+
+    // Send to peer
+    conn.send({ type: 'chat', text: text });
+
+    // Append locally
+    appendChatMessage(text, 'self');
+    chatInput.value = '';
+}
+
+function appendChatMessage(text, senderType) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', senderType);
+    msgDiv.textContent = text;
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    if (senderType === 'other') {
+        playSound('chat');
+    }
+}
 
 // ----- PEER JS SETUP -----
 const marvelHeroes = [
@@ -131,9 +175,12 @@ function setupConnection(connection, role) {
     conn.on('open', () => {
         // Connected!
         connectionPanel.style.display = 'none';
+
+        // Show board and chat
         boardEl.style.pointerEvents = 'auto';
         boardEl.style.opacity = '1';
         resetBtn.style.display = 'block';
+        chatPanel.style.display = 'flex';
 
         startGame();
     });
@@ -143,6 +190,8 @@ function setupConnection(connection, role) {
             handleOpponentMove(data.index, data.player);
         } else if (data.type === 'restart') {
             restartGame(false);
+        } else if (data.type === 'chat') {
+            appendChatMessage(data.text, 'other');
         }
     });
 
